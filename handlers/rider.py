@@ -1,6 +1,6 @@
-from aiogram import Router, F, Bot
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy import select
@@ -68,96 +68,50 @@ async def process_rider_name(message: Message, state: FSMContext):
     await message.answer("এখন আপনার স্থায়ী হোম লোকেশন শেয়ার করুন:", reply_markup=kb)
     await state.set_state(RiderRegistration.waiting_for_home_location)
 
+# লোকেশন হ্যান্ডলিং আরও ফ্লেক্সিবল করা হয়েছে (বাটন ও নরমাল অ্যাটাচমেন্ট দুইটাই রিসিভ করবে)
 @router.message(RiderRegistration.waiting_for_home_location, F.location)
 async def process_rider_home_location(message: Message, state: FSMContext):
     data = await state.get_data()
-    async with AsyncSessionLocal() as session:
-        rider = Rider(
-            telegram_id=message.from_user.id,
-            phone_number=data["phone_number"],
-            full_name=data["full_name"],
-            home_lat=message.location.latitude,
-            home_lon=message.location.longitude,
-            status="REGISTERED_OFFLINE"
-        )
-        session.add(rider)
-        await session.commit()
-        
-    await message.answer("🎉 রেজিস্ট্রেশন সফল হয়েছে! কাজ শুরু করতে `/go_online` কমান্ড দিন।", reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown")
-    await state.clear()
-
-@router.message(Command("change_home_address"))
-async def change_home_address_start(message: Message, state: FSMContext):
-    kb = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="📍 Share New Home Location", request_location=True)]],
-        resize_keyboard=True, one_time_keyboard=True
-    )
-    await message.answer("আপনার নতুন হোম লোকেশন পাঠালুন:", reply_markup=kb)
-    await state.set_state(ChangeAddress.waiting_for_new_location)
-
-@router.message(ChangeAddress.waiting_for_new_location, F.location)
-async def change_home_address_finish(message: Message, state: FSMContext):
-    async with AsyncSessionLocal() as session:
-        stmt = select(Rider).where(Rider.telegram_id == message.from_user.id)
-        res = await session.execute(stmt)
-        rider = res.scalar_one_or_none()
-        if rider:
-            rider.home_lat = message.location.latitude
-            rider.home_lon = message.location.longitude
-            await session.commit()
-            await message.answer("✅ আপনার হোম এড্রেস সফলভাবে আপডেট করা হয়েছে।", reply_markup=ReplyKeyboardRemove())
-        else:
-            await message.answer("❌ আপনি নিবন্ধিত রাইডার নন।")
-    await state.clear()
-
-@router.message(Command("zone"))
-async def set_zone_cmd(message: Message, state: FSMContext):
-    await message.answer("হোম লোকেশন থেকে কত কিমি পর্যন্ত কাজ করতে চান? (১ থেকে ১০ এর মধ্যে সংখ্যা লিখুন):")
-    await state.set_state(ZoneSetup.waiting_for_zone_radius)
-
-@router.message(ZoneSetup.waiting_for_zone_radius)
-async def process_zone_input(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    phone = data.get("phone_number", "N/A")
+    name = data.get("full_name", "Unknown Rider")
+    
     try:
-        val = float(message.text)
-        if 1.0 <= val <= 10.0:
-            async with AsyncSessionLocal() as session:
-                stmt = select(Rider).where(Rider.telegram_id == message.from_user.id)
-                res = await session.execute(stmt)
-                rider = res.scalar_one_or_none()
-                if rider:
-                    rider.zone_radius_km = val
-                    await session.commit()
-                    await message.answer(f"✅ আপনার ডেলিভারি জোন {val} কিমি সেট করা হয়েছে।")
-            await state.clear()
-        else:
-            await message.answer("১ থেকে ১০ এর মধ্যে সংখ্যা দিন।")
-    except ValueError:
-        await message.answer("সঠিক সংখ্যা প্রদান করুন।")
+        async with AsyncSessionLocal() as session:
+            stmt = select(Rider).where(Rider.telegram_id == user_id)
+            res = await session.execute(stmt)
+            rider = res.scalar_one_or_none()
 
-@router.message(Command("go_online"))
-async def go_online_cmd(message: Message):
-    await message.answer("🌐 অনলাইনে যেতে আপনার **Live Location** শেয়ার করুন (Location -> Share Live Location)।")
+            if rider:
+                # আগে থেকে আইডি থাকলে ডাটা আপডেট হবে
+                rider.phone_number = phone
+                rider.full_name = name
+                rider.home_lat = float(message.location.latitude)
+                rider.home_lon = float(message.location.longitude)
+                rider.status = "REGISTERED_OFFLINE"
+            else:
+                # নতুন রাইডার তৈরি হবে
+                new_rider = Rider(
+                    telegram_id=user_id,
+                    phone_number=phone,
+                    full_name=name,
+                    home_lat=float(message.location.latitude),
+                    home_lon=float(message.location.longitude),
+                    status="REGISTERED_OFFLINE"
+                )
+                session.add(new_rider)
 
-@router.message(Command("go_offline"))
-async def go_offline_cmd(message: Message):
-    async with AsyncSessionLocal() as session:
-        stmt = select(Rider).where(Rider.telegram_id == message.from_user.id)
-        res = await session.execute(stmt)
-        rider = res.scalar_one_or_none()
-        if rider:
-            rider.status = "REGISTERED_OFFLINE"
             await session.commit()
-            await message.answer("🔴 আপনি এখন অফলাইনে আছেন।")
+            
+        await message.answer("🎉 রেজিস্ট্রেশন সফল হয়েছে! কাজ শুরু করতে `/go_online` কমান্ড দিন।", reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown")
+        await state.clear()
+        
+    except Exception as e:
+        print(f"Error saving rider: {e}")
+        await message.answer("❌ ডেটা সেভ করার সময় এরর ঘটেছে। আবার `/registration_for_rider` চেষ্টা করুন।", reply_markup=ReplyKeyboardRemove())
+        await state.clear()
 
-@router.edited_message(F.location)
-async def handle_live_location_stream(message: Message):
-    async with AsyncSessionLocal() as session:
-        stmt = select(Rider).where(Rider.telegram_id == message.from_user.id)
-        res = await session.execute(stmt)
-        rider = res.scalar_one_or_none()
-        if rider and rider.status != "SUSPENDED":
-            rider.live_lat = message.location.latitude
-            rider.live_lon = message.location.longitude
-            if rider.status == "REGISTERED_OFFLINE":
-                rider.status = "ONLINE_IDLE"
-            await session.commit()
+# জেন্যারিক লোকেশন ট্র্যাপ (যদি FSM স্টেট কোনো কারণে রিসেট হয়ে যায়)
+@router.message(F.location)
+async def fallback_location(message: Message):
+    await message.answer("⚠️ আপনি বর্তমানে রেজিস্ট্রেশন প্রসেসে নেই। আবার শুরু করতে `/registration_for_rider` চাপুন।")
