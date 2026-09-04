@@ -19,6 +19,28 @@ class ChangeAddress(StatesGroup):
 class ZoneSetup(StatesGroup):
     waiting_for_zone_radius = State()
 
+@router.message(Command("start"))
+async def start_cmd(message: Message):
+    welcome_text = (
+        "👋 **ফুড ডেলিভারি প্ল্যাটফর্মে স্বাগতম!**\n\n"
+        "আপনার ভূমিকা অনুযায়ী নিচের কমান্ডগুলো ব্যবহার করুন:\n\n"
+        "🏍️ **রাইডার কমান্ড:**\n"
+        "• `/registration_for_rider` - রেজিস্ট্রেশন করুন\n"
+        "• `/go_online` - কাজ শুরু করতে অনলাইনে যান\n"
+        "• `/go_offline` - অফলাইনে যান\n"
+        "• `/zone` - ডেলিভারি জোন সেট করুন\n"
+        "• `/change_home_address` - এড্রেস আপডেট করুন\n\n"
+        "🏪 **ভেন্ডর কমান্ড:**\n"
+        "• `/post_order` - ১ কিমি রেঞ্জে অর্ডার পোস্ট\n"
+        "• `/broadcast` - ৫ কিমি রেঞ্জে ব্রডকাস্ট\n\n"
+        "⚙️ **এডমিন কমান্ড:**\n"
+        "• `/add_vendor` - ভেন্ডর যোগ করুন\n"
+        "• `/search_user` - ইউজার খুঁজুন\n"
+        "• `/suspend` - একাউন্ট বন্ধ করুন\n"
+        "• `/update_pricing` - চার্জ আপডেট করুন"
+    )
+    await message.answer(welcome_text, parse_mode="Markdown")
+
 @router.message(Command("registration_for_rider"))
 async def start_rider_registration(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
@@ -129,7 +151,6 @@ async def go_offline_cmd(message: Message):
 
 @router.edited_message(F.location)
 async def handle_live_location_stream(message: Message):
-    # টেলিগ্রাম লাইভ লোকেশন আপডেট ব্যাকএন্ডে রিসিভ করা
     async with AsyncSessionLocal() as session:
         stmt = select(Rider).where(Rider.telegram_id == message.from_user.id)
         res = await session.execute(stmt)
