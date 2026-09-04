@@ -14,8 +14,8 @@ class Settings(BaseSettings):
             return raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return raw_url
 
-    # Render-এর Environment Variable থেকে Admin ID পড়ার নিরাপদ ব্যবস্থা
-    ADMIN_TELEGRAM_IDS_RAW: str = os.getenv("5552828142", "123456789")
+    # আপনার টেলিগ্রাম এডমিন আইডি সঠিক জায়গায় বসানো হয়েছে
+    ADMIN_TELEGRAM_IDS_RAW: str = os.getenv("ADMIN_TELEGRAM_IDS", "5552828142")
 
     @property
     def ADMIN_TELEGRAM_IDS(self) -> list[int]:
