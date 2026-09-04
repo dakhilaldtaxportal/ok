@@ -1,3 +1,4 @@
+import os
 import asyncio
 import uvicorn
 from fastapi import FastAPI
@@ -26,7 +27,9 @@ async def run_bot():
     await dp.start_polling(bot)
 
 async def main():
-    config = uvicorn.Config(app, host="0.0.0.0", port=8080, log_level="info")
+    # Render-এর দেওয়া ডায়নামিক PORT পড়া (Render পোর্ট না পাঠালে ডিফল্ট 8080 ধরবে)
+    port = int(os.getenv("PORT", 8080))
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
     
     # ওয়েব সার্ভার এবং বটের ইভেন্ট লুপ একত্রে চালনা
