@@ -2,12 +2,12 @@ import os
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
+    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "8619073008:AAFd7eako8DKXBmRAGwc7P-yeGnXtbCApLQ")
     
     # ডাটাবেস URL প্রসেসিং (postgres:// বা postgresql:// কে অটোমেটিক asyncpg তে কনভার্ট করবে)
     @property
     def DATABASE_URL(self) -> str:
-        raw_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost:5432/delivery_db")
+        raw_url = os.getenv("DATABASE_URL", "postgresql://database_6nfh_user:qq7zeUK6qU7Kenne5mBIvcth0CANlKrj@dpg-dadiqd9t0dsc73eo8gmg-a/database_6nfh")
         if raw_url.startswith("postgres://"):
             return raw_url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif raw_url.startswith("postgresql://") and not raw_url.startswith("postgresql+asyncpg://"):
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         return raw_url
 
     # Render-এর Environment Variable থেকে Admin ID পড়ার নিরাপদ ব্যবস্থা
-    ADMIN_TELEGRAM_IDS_RAW: str = os.getenv("ADMIN_TELEGRAM_IDS", "123456789")
+    ADMIN_TELEGRAM_IDS_RAW: str = os.getenv("5552828142", "123456789")
 
     @property
     def ADMIN_TELEGRAM_IDS(self) -> list[int]:
