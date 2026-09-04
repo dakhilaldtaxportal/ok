@@ -34,8 +34,8 @@ class Vendor(Base):
     lon: Mapped[float] = mapped_column(Float, nullable=True)
     created_at = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-class AdminSetting(Base):
-    __tablename__ = "admin_settings"
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     base_fare: Mapped[float] = mapped_column(Float, default=50.0)
@@ -43,7 +43,9 @@ class AdminSetting(Base):
     extra_per_km: Mapped[float] = mapped_column(Float, default=20.0)
     broadcast_per_km: Mapped[float] = mapped_column(Float, default=15.0)
 
+# অন্য ফাইলে AdminSetting ইম্পোর্ট থাকলেও যেন কাজ করে
+AdminSetting = SystemSettings
+
 async def init_db():
     async with engine.begin() as conn:
-        # আগের টেবিলগুলোর কলাম সমস্যা থাকলে নতুন করে রি-ক্রিয়েট করবে
         await conn.run_sync(Base.metadata.create_all)
